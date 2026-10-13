@@ -1,0 +1,313 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notebook</title>
+<style>
+:root{--bg:#0f1115;--panel:#161920;--card:#1d212b;--line:#262a33;--fg:#e7e9ee;--mut:#8b91a0;--acc:#4f8cff;--hl:#f59e0b;--hl-bg:#261f0b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;gap:12px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-shrink:0}
+header h1{font-size:17px;margin:0;flex:1;display:flex;align-items:center;gap:8px}
+select,button,input{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit}
+button{cursor:pointer;transition:border-color .15s,background .15s}button:hover{border-color:var(--acc)}
+.pill{border:1px solid var(--line);border-radius:999px;padding:4px 12px;color:var(--mut);font-size:13px;background:var(--bg)}
+main{flex:1;display:flex;min-height:0;position:relative}
+
+/* Left panel: contains both sources list and doc viewer */
+#left{width:380px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;flex-shrink:0}
+.panel-view{flex:1;display:flex;flex-direction:column;min-height:0;padding:14px;overflow:hidden}
+#left button.add{width:100%;border-radius:999px;margin-bottom:10px;background:var(--acc);color:#fff;border:none;font-weight:600;padding:8px 14px}
+#left button.add:hover{opacity:.9}
+
+.sources-toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;margin-bottom:8px;border-bottom:1px solid var(--line);font-size:13px}
+.select-all-box{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:var(--fg);font-weight:500}
+.select-all-box input{cursor:pointer;accent-color:var(--acc);width:16px;height:16px;margin:0}
+
+#srcs{flex:1;overflow-y:auto;padding-right:4px}
+.src{display:flex;gap:10px;align-items:flex-start;padding:10px 8px;border-radius:8px;border-bottom:1px solid var(--line);transition:background .15s}
+.src:hover{background:var(--card)}
+.src input[type="checkbox"]{margin-top:3px;cursor:pointer;accent-color:var(--acc);width:16px;height:16px}
+.src .nm{flex:1;cursor:pointer;word-break:break-word;font-size:14px;font-weight:500}
+.src .nm:hover{color:var(--acc)}
+.src .meta-row{margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
+.badge{font:11px monospace;color:var(--mut);background:#0f1115;border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+.x{border:none;background:none;color:var(--mut);padding:0 6px;cursor:pointer;border-radius:6px}
+.x:hover{color:#ff6b6b;background:#ff6b6b15}
+
+/* Doc preview view in left sidebar */
+.doc-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:5px 10px;border-radius:6px}
+.back-btn:hover{color:var(--acc);border-color:var(--acc)}
+.doc-meta-bar{margin-bottom:10px;padding:8px 10px;background:var(--card);border-radius:8px;border:1px solid var(--line)}
+.doc-meta-bar b{display:block;font-size:14px;word-break:break-word;color:var(--fg)}
+#vbody{flex:1;overflow-y:auto;padding-right:4px}
+.ck{white-space:pre-wrap;padding:10px 12px;margin-bottom:8px;border-radius:8px;font-size:13px;color:#c9ccd6;background:var(--card);border:1px solid var(--line);transition:border-color .2s,background .2s}
+.ck-badge{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.ck small{color:var(--mut);font:11px monospace}
+.ck.target{border-left:3px solid var(--hl);background:var(--hl-bg);border-color:var(--hl)}
+.hl-tag{font:10px system-ui;background:var(--hl);color:#000;font-weight:700;border-radius:4px;padding:1px 6px;text-transform:uppercase}
+mark.rel-hl{background:#f59e0b44;color:#ffe885;border-bottom:2px solid var(--hl);border-radius:3px;padding:1px 4px;font-weight:600}
+
+/* Center Chat */
+#center{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+#chat{flex:1;overflow-y:auto;padding:24px 0}
+.wrap{max-width:820px;margin:0 auto;padding:0 24px;width:100%}
+.u{display:flex;justify-content:flex-end;margin:16px 0}
+.u div{background:#232733;border-radius:18px;padding:10px 18px;max-width:80%;font-size:15px;line-height:1.5}
+.a{margin:16px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
+.a .body{font-size:15px;line-height:1.6}
+.meta{font:12px monospace;color:var(--mut);margin-top:8px}
+code{background:#232733;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:13px}
+.cite{display:inline-flex;align-items:center;justify-content:center;font:11px monospace;font-weight:700;border:1px solid var(--acc);color:var(--acc);background:#4f8cff12;border-radius:4px;padding:0 6px;margin:0 3px;cursor:pointer;vertical-align:baseline;transition:all .15s}
+.cite:hover{background:var(--acc);color:#fff}
+#tip{position:fixed;display:none;max-width:400px;background:#1d212b;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;z-index:20;box-shadow:0 12px 30px #000c;line-height:1.45}
+#tip b{display:block;color:var(--acc);margin-bottom:6px;font-size:12px}
+#tip .tip-rel{color:#ffd166;font-weight:500}
+#bar{padding:14px 0 12px;background:var(--panel);border-top:1px solid var(--line)}
+#bar .wrap{display:flex;gap:10px}
+#bar input{flex:1;border-radius:999px;padding:12px 20px;background:var(--card);border:1px solid var(--line);font-size:15px}
+#bar input:focus{outline:none;border-color:var(--acc)}
+#bar button{border-radius:999px;padding:0 22px;background:var(--acc);color:#fff;border:none;font-weight:600}
+#askbtn{position:fixed;display:none;z-index:30;background:var(--acc);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;box-shadow:0 4px 12px #0008}
+</style></head><body>
+<header>
+ <h1>📓 <span id="nbname">Notebook</span></h1>
+ <select id="nbsel"></select><button onclick="newNb()">+ Notebook</button>
+ <select id="sesel"></select><button onclick="newSession()">+ Chat</button>
+ <span class="pill">Total cost: <b id="cost">$0.0000</b></span>
+</header>
+<main>
+ <!-- Left Panel: Sources List OR Document Preview on Left Side -->
+ <div id="left">
+  <!-- View 1: Sources List -->
+  <div id="view-sources" class="panel-view">
+   <button class="add" onclick="$('#file').click()">+ Add sources</button>
+   <input type="file" id="file" accept=".pdf,.txt,.md" multiple hidden onchange="upload(this.files)">
+   <div id="status" class="meta" style="margin-bottom:6px"></div>
+   <div class="sources-toolbar">
+    <label class="select-all-box">
+     <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)">
+     <span>Select all</span>
+    </label>
+    <span id="select-count" class="badge">0 selected</span>
+   </div>
+   <div id="srcs"></div>
+  </div>
+
+  <!-- View 2: Document Preview on Left Side -->
+  <div id="view-doc" class="panel-view" style="display:none">
+   <div class="doc-header">
+    <button class="back-btn" onclick="closeDocViewer()">← Back to sources</button>
+    <button class="x" onclick="closeDocViewer()" title="Close viewer">✕</button>
+   </div>
+   <div class="doc-meta-bar">
+    <b id="doc-title"></b>
+    <div id="doc-sub" class="meta"></div>
+   </div>
+   <div id="vbody"></div>
+  </div>
+ </div>
+
+ <!-- Center: Chat Canvas -->
+ <div id="center">
+  <div id="chat"><div class="wrap" id="msgs"></div></div>
+  <div id="bar">
+   <div class="wrap">
+    <input id="q" placeholder="Ask a question about your checked sources" onkeydown="if(event.key==='Enter')send()">
+    <button onclick="send()">Send</button>
+   </div>
+  </div>
+ </div>
+</main>
+
+<div id="tip"></div>
+<button id="askbtn" onmousedown="event.preventDefault()" onclick="askSel()">Ask about this</button>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'$'+(+n).toFixed(n<0.01?6:4);
+async function api(url,opt){const r=await fetch(url,opt);if(!r.ok){let t=await r.text();try{t=JSON.parse(t).detail||t}catch(e){}throw new Error(t)}return r.json()}
+const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
+let nb=null,sess=null,cites={},cachedSources=[];
+
+async function init(){
+  let list=await api('/api/notebooks');
+  if(!list.length){await post('/api/notebooks',{name:'My notebook'});list=await api('/api/notebooks')}
+  $('#nbsel').innerHTML=list.map(n=>`<option value="${n.id}">${esc(n.name)}</option>`).join('');
+  $('#nbsel').onchange=()=>openNb(+$('#nbsel').value);
+  openNb(list[0].id);
+}
+async function newNb(){const n=prompt('Notebook name');if(!n)return;const r=await post('/api/notebooks',{name:n});
+  $('#nbsel').insertAdjacentHTML('beforeend',`<option value="${r.id}">${esc(n)}</option>`);$('#nbsel').value=r.id;openNb(r.id)}
+async function openNb(id){nb=id;sess=null;closeDocViewer();await refresh(true)}
+
+async function refresh(pick){
+  const d=await api('/api/notebooks/'+nb);
+  $('#nbname').textContent=d.name;
+  $('#cost').textContent=money(d.total_cost);
+  cachedSources=d.sources||[];
+
+  const checkedCount=cachedSources.filter(s=>s.checked).length;
+  const totalCount=cachedSources.length;
+  const sa=$('#select-all-cb');
+  if(sa){
+    sa.checked=totalCount>0&&checkedCount===totalCount;
+    sa.indeterminate=checkedCount>0&&checkedCount<totalCount;
+  }
+  const sc=$('#select-count');
+  if(sc)sc.textContent=`${checkedCount}/${totalCount} selected`;
+
+  $('#srcs').innerHTML=cachedSources.map(s=>`
+    <div class="src">
+      <input type="checkbox" ${s.checked?'checked':''} onchange="check(${s.id},this.checked)">
+      <div class="nm" onclick="openViewer(${s.id})">
+        <div>${esc(s.name)}</div>
+        <div class="meta-row">
+          <span class="badge">🧩 ${s.n_chunks} chunks</span>
+          <span class="badge">⚡ ${money(s.cost)}</span>
+        </div>
+      </div>
+      <button class="x" onclick="del(${s.id})" title="Delete source">🗑</button>
+    </div>`).join('')||'<p class="meta" style="text-align:center;padding:20px 0">No sources yet.<br>Click "+ Add sources" above to upload.</p>';
+
+  $('#sesel').innerHTML=d.sessions.map(s=>`<option value="${s.id}">${esc(s.title)}</option>`).join('');
+  $('#sesel').onchange=()=>loadSession(+$('#sesel').value);
+  if(pick){if(d.sessions.length)loadSession(d.sessions[0].id);else{sess=null;$('#msgs').innerHTML=''}}
+  else if(sess)$('#sesel').value=sess;
+}
+
+async function check(id,c){
+  await api('/api/sources/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({checked:c})});
+  refresh();
+}
+
+async function toggleSelectAll(checked){
+  try{
+    await api(`/api/notebooks/${nb}/sources/toggle-all`,{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({checked:checked})
+    });
+  }catch(e){
+    // Fallback: update individually if batch fails
+    for(const s of cachedSources){
+      await api('/api/sources/'+s.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({checked})});
+    }
+  }
+  refresh();
+}
+
+async function del(id){if(confirm('Delete this source?')){await api('/api/sources/'+id,{method:'DELETE'});closeDocViewer();refresh()}}
+async function upload(files){
+  for(const f of files){
+    $('#status').textContent='Processing '+f.name+'…';
+    const fd=new FormData();fd.append('file',f);
+    try{await api(`/api/notebooks/${nb}/sources`,{method:'POST',body:fd})}catch(e){alert(f.name+': '+e.message)}
+  }
+  $('#status').textContent='';$('#file').value='';refresh();
+}
+
+async function newSession(){const s=await post(`/api/notebooks/${nb}/sessions`);sess=s.id;await refresh();$('#sesel').value=s.id;$('#msgs').innerHTML=''}
+async function loadSession(id){sess=id;$('#sesel').value=id;$('#msgs').innerHTML='';cites={};
+  (await api(`/api/sessions/${id}/messages`)).forEach(addMsg)}
+
+function fmt(m){
+  let h=esc(m.content).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+  return h.replace(/\[(\d+)\]/g,(x,n)=>(m.citations||[]).find(c=>c.n==n)?`<span class="cite" data-m="${m.id}" data-n="${n}">${n}</span>`:x)}
+
+function addMsg(m){
+  const box=$('#msgs');
+  if(m.role==='user'){box.insertAdjacentHTML('beforeend',`<div class="u"><div>${esc(m.content)}</div></div>`)}
+  else{cites[m.id]=m.citations||[];
+    box.insertAdjacentHTML('beforeend',`<div class="a"><div class="body">${fmt(m)}</div>
+     <div class="meta">⚡ ${money(m.cost||0)}${m.tokens?' · '+m.tokens+' tokens':''}</div></div>`)}
+  $('#chat').scrollTop=1e9}
+
+async function send(text){
+  const q=(text||$('#q').value).trim();if(!q)return;$('#q').value='';
+  if(!sess){const s=await post(`/api/notebooks/${nb}/sessions`);sess=s.id}
+  addMsg({role:'user',content:q});
+  try{addMsg(await post(`/api/sessions/${sess}/chat`,{question:q}))}catch(e){addMsg({role:'assistant',content:'Error: '+e.message,citations:[]})}
+  refresh();
+}
+
+// Viewer and Highlights on Left Side
+function closeDocViewer(){
+  $('#view-doc').style.display='none';
+  $('#view-sources').style.display='flex';
+}
+
+async function openViewer(sid, chunkId = null, citeNum = null){
+  const d=await api(`/api/sources/${sid}/chunks`);
+  $('#doc-title').textContent = d.source.name;
+  $('#doc-sub').textContent = `${d.chunks.length} chunks · ${money(d.source.cost)}`;
+
+  $('#vbody').innerHTML = d.chunks.map(c => {
+    const isTarget = chunkId && c.id == chunkId;
+    return `
+      <div class="ck ${isTarget?'target':''}" id="ck${c.id}">
+        <div class="ck-badge">
+          <small>chunk ${c.idx+1} · p.${c.page}</small>
+          ${isTarget ? `<span class="hl-tag">🎯 Cited Excerpt ${citeNum?'['+citeNum+']':''}</span>` : ''}
+        </div>
+        <div class="ck-text">${isTarget ? `<mark class="rel-hl">${esc(c.text)}</mark>` : esc(c.text)}</div>
+      </div>`;
+  }).join('');
+
+  // Switch left view to doc viewer
+  $('#view-sources').style.display = 'none';
+  $('#view-doc').style.display = 'flex';
+
+  if(chunkId){
+    setTimeout(()=>{
+      const t = $('#ck' + chunkId);
+      if(t) t.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }, 50);
+  }
+}
+
+  // Switch left view to doc viewer
+  $('#view-sources').style.display = 'none';
+  $('#view-doc').style.display = 'flex';
+
+  if(chunkId){
+    setTimeout(()=>{
+      const t = $('#ck' + chunkId);
+      if(t) t.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }, 50);
+  }
+}
+
+// Hover Tooltip on Citations
+const tip=$('#tip');
+const getCite=el=>(cites[el.dataset.m]||[]).find(c=>c.n==el.dataset.n);
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest('.cite');if(!el)return;
+  const c=getCite(el);if(!c)return;
+  const displaySnippet = c.text;
+  tip.innerHTML=`<b>${esc(c.source)} · p.${c.page}</b><div class="tip-rel">${esc(displaySnippet.slice(0,380))}${displaySnippet.length>380?'…':''}</div>`;
+  const r=el.getBoundingClientRect();
+  tip.style.display='block';
+  tip.style.left=Math.min(r.left,innerWidth-420)+'px';
+  tip.style.top=(r.top-tip.offsetHeight-8>0?r.top-tip.offsetHeight-8:r.bottom+8)+'px';
+});
+document.addEventListener('mouseout',e=>{if(e.target.closest('.cite'))tip.style.display='none'});
+
+// Click Citation opens left doc viewer and highlights relevant answer
+document.addEventListener('click',e=>{
+  const el=e.target.closest('.cite');if(!el)return;
+  const c=getCite(el);
+  if(c) openViewer(c.source_id, c.chunk_id, c.n);
+});
+
+// Highlight text and ask
+document.addEventListener('mouseup',e=>{
+  const b=$('#askbtn'),s=getSelection().toString().trim();
+  if(s.length>3&&(e.target.closest('.a')||e.target.closest('#view-doc'))){
+    const r=getSelection().getRangeAt(0).getBoundingClientRect();b.dataset.t=s;b.style.display='block';
+    b.style.left=Math.min(r.left,innerWidth-140)+'px';b.style.top=(r.bottom+6)+'px'}
+  else if(e.target!==b)b.style.display='none'});
+function askSel(){const t=$('#askbtn').dataset.t;$('#askbtn').style.display='none';getSelection().removeAllRanges();
+  send(`Explain this passage in the context of my sources: "${t}"`)}
+
+init();
+</script></body></html>
