@@ -1,4 +1,4 @@
-# 📓 Notebook: NotebookLM-Style RAG Workspace (LangChain)
+# Notebook: NotebookLM-Style RAG Workspace (LangChain)
 
 A lightweight, local, full-featured **NotebookLM-style Grounded RAG Application** built with **FastAPI**, **LangChain**, embedded **Qdrant**, **SQLite**, and a responsive single-page web interface.
 
