@@ -265,18 +265,6 @@ async function openViewer(sid, chunkId = null, citeNum = null){
   }
 }
 
-  // Switch left view to doc viewer
-  $('#view-sources').style.display = 'none';
-  $('#view-doc').style.display = 'flex';
-
-  if(chunkId){
-    setTimeout(()=>{
-      const t = $('#ck' + chunkId);
-      if(t) t.scrollIntoView({behavior: 'smooth', block: 'center'});
-    }, 50);
-  }
-}
-
 // Hover Tooltip on Citations
 const tip=$('#tip');
 const getCite=el=>(cites[el.dataset.m]||[]).find(c=>c.n==el.dataset.n);

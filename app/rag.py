@@ -49,7 +49,7 @@ def embeddings():
 def llm():
     global _llm
     if _llm is None:
-        _need_key(); _llm = ChatOpenAI(model=CHAT_MODEL, temperature=0.2)
+        _need_key(); _llm = ChatOpenAI(model=CHAT_MODEL)
     return _llm
 
 def store():
