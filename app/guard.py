@@ -2,10 +2,16 @@
 Zero hardcoding - dynamically classifies safety, suicide/self-harm, violence, and system security probes,
 and dynamically generates crisis intervention and safety refusals via LangChain."""
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from openai import OpenAI
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+
+# Model configurations: customize simply by changing the name or via .env
+MODERATION_MODEL = os.getenv("MODERATION_MODEL", "omni-moderation-latest")
+GUARD_MODEL = os.getenv("GUARD_MODEL", "gpt-4o-mini")
 
 GUARD_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
@@ -41,14 +47,14 @@ _mod_client = None
 def _get_chain():
     global _guard_chain
     if _guard_chain is None:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model=GUARD_MODEL, temperature=0)
         _guard_chain = GUARD_PROMPT | llm | StrOutputParser()
     return _guard_chain
 
 def _get_responder():
     global _responder_chain
     if _responder_chain is None:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatOpenAI(model=GUARD_MODEL, temperature=0)
         _responder_chain = SAFETY_RESPONDER | llm | StrOutputParser()
     return _responder_chain
 
@@ -70,10 +76,10 @@ def check(text: str) -> str | None:
     except Exception:
         pass
 
-    # 2. OpenAI Moderation Endpoint fallback
+    # 2. OpenAI Moderation Endpoint fallback (omni-moderation-latest)
     try:
         client = _get_client()
-        r = client.moderations.create(input=text).results[0]
+        r = client.moderations.create(model=MODERATION_MODEL, input=text).results[0]
         if r.flagged:
             responder = _get_responder()
             return responder.invoke({"text": text}).strip()

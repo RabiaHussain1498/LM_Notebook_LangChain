@@ -585,7 +585,7 @@
       z-index: 1000;
       box-shadow: 0 16px 36px rgba(0,0,0,0.65);
       line-height: 1.45;
-      pointer-events: none;
+      pointer-events: auto;
       backdrop-filter: blur(8px);
     }
 
@@ -913,13 +913,14 @@
         const mid = m.id || ('m_' + Date.now() + '_' + Math.random().toString(36).slice(2));
         m.id = mid;
         cites[mid] = m.citations || [];
+        const inTok = m.input_tokens || (m.total_tokens && m.tokens && m.total_tokens > m.tokens ? (m.total_tokens - m.tokens) : 0);
         const tokenDisplay = m.tokens
-          ? (m.total_tokens && m.total_tokens !== m.tokens
-              ? `${m.tokens} output tokens (${m.total_tokens} total)`
-              : `${m.tokens} tokens`)
+          ? (inTok
+              ? `${inTok} in · ${m.tokens} out (${m.total_tokens} total)`
+              : `${m.tokens} output tokens (${m.total_tokens} total)`)
           : '';
         const tokenTooltip = m.total_tokens
-          ? `title="${m.tokens || 0} output tokens generated · ${m.total_tokens} total tokens consumed (prompt + excerpts + answer)"`
+          ? `title="${inTok} input tokens (prompt & context) + ${m.tokens} output tokens (response) = ${m.total_tokens} total tokens consumed"`
           : '';
         box.insertAdjacentHTML('beforeend', `<div class="a"><div class="body">${fmt(m)}</div>
      <div class="meta" ${tokenTooltip}>⚡ ${money(m.cost || 0)}${tokenDisplay ? ' · ' + tokenDisplay : ''}</div></div>`);
@@ -1215,6 +1216,30 @@
       if (!el) return;
       const c = getCite(el);
       if (!c) return;
+
+      if (c.url) {
+        tip.innerHTML = `
+          <div class="tip-header">
+            <b>🌐 ${esc(c.source || 'Web Source')}</b>
+            <span class="tip-badge">Web Citation [${c.n}]</span>
+          </div>
+          <div class="tip-label">Source URL:</div>
+          <div class="tip-rel"><a href="${esc(c.url)}" target="_blank" style="color:var(--acc);word-break:break-all">${esc(c.url)}</a></div>
+          <div class="tip-foot">🖱 Click citation badge to open source web page</div>
+        `;
+        tip.style.display = 'block';
+        const r = el.getBoundingClientRect();
+        const tipW = 440;
+        let left = r.left;
+        if (left + tipW > window.innerWidth - 16) left = window.innerWidth - tipW - 16;
+        if (left < 16) left = 16;
+        let top = r.top - tip.offsetHeight - 8;
+        if (top < 10) top = r.bottom + 8;
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+        return;
+      }
+
       const msgEl = el.closest('.a');
       const claimText = msgEl ? msgEl.textContent : '';
       const displaySnippet = extractConcernedPatch(c.patch || c.text, claimText);
@@ -1244,17 +1269,28 @@
       tip.style.top = top + 'px';
     });
 
+    let tipTimer = null;
     document.addEventListener('mouseout', e => {
-      if (e.target.closest('.cite')) tip.style.display = 'none';
+      if (e.target.closest('.cite') || e.target.closest('#tip')) {
+        tipTimer = setTimeout(() => {
+          if (!document.querySelector('.cite:hover') && !document.querySelector('#tip:hover')) {
+            tip.style.display = 'none';
+          }
+        }, 150);
+      }
     });
 
-    // Click Citation opens left doc viewer in original document mode and highlights concerned patch
+    // Click Citation opens web url in new tab OR opens left doc viewer in original document mode
     document.addEventListener('click', e => {
       const el = e.target.closest('.cite');
       if (!el) return;
       const c = getCite(el);
       if (c) {
         tip.style.display = 'none';
+        if (c.url) {
+          window.open(c.url, '_blank');
+          return;
+        }
         const msgEl = el.closest('.a');
         const claimText = msgEl ? msgEl.textContent : '';
         openViewer(c.source_id, c.chunk_id, c.n, c.patch || c.text, claimText);

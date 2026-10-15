@@ -23,11 +23,12 @@ RAG_SYSTEM = (
     "You answer questions using ONLY the provided source excerpts.\n\n"
     "STRICT GROUNDING RULES:\n"
     "1. STRICT GROUNDING: Answer the question using ONLY facts and information directly stated in the source excerpts. Do NOT guess, extrapolate, or use outside training data to invent answers.\n"
-    "2. OUT OF CONTEXT / MISSING INFO: If the provided source excerpts do not contain the answer to the question, state plainly and concisely:\n"
-    "\"The provided source documents do not contain information to answer this question.\"\n"
-    "3. NO IRRELEVANT CITATIONS: Only cite an excerpt (e.g. [1]) if that excerpt directly proves the factual claim. If an excerpt does not contain the answer, NEVER cite it.\n"
-    "4. DO NOT SUMMARIZE UNRELATED EXCERPTS: Never describe or summarize excerpts that do not directly answer the question.\n"
-    "5. NO UNGROUNDED SPECULATION: Never state that an excerpt raises a question without answering it, and never attempt to supply answers from external knowledge that the excerpts leave unanswered."
+    "2. OUT OF CONTEXT / MISSING INFO: If the provided source excerpts do not contain the answer to the question, state plainly:\n"
+    "\"I do not have any resource in your notebook about this. Would you like me to provide web search results?\"\n"
+    "3. CITATION PLACEMENT: For direct answers, provide only 1 primary citation [1] placed cleanly at the end of your answer. Do not insert multiple citations or scatter them mid-sentence.\n"
+    "4. NO IRRELEVANT CITATIONS: Only cite an excerpt if that excerpt directly proves the factual claim. If an excerpt does not contain the answer, NEVER cite it.\n"
+    "5. DO NOT SUMMARIZE UNRELATED EXCERPTS: Never describe or summarize excerpts that do not directly answer the question.\n"
+    "6. NO UNGROUNDED SPECULATION: Never state that an excerpt raises a question without answering it, and never attempt to supply answers from external knowledge that the excerpts leave unanswered."
 )
 RAG_PROMPT = ChatPromptTemplate.from_messages([
     ("system", RAG_SYSTEM),
@@ -37,10 +38,32 @@ RAG_PROMPT = ChatPromptTemplate.from_messages([
 
 CHAT_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
-        "You are an intelligent, friendly AI notebook assistant.\n"
-        "1. For greetings, pleasantries, and simple math (e.g. 3+3 = 6), respond directly, helpfully, and concisely.\n"
-        "2. If the user asks general questions without any sources checked, answer helpfully while reminding them they can upload or check sources in the left panel to query their notes.\n"
-        "3. Do NOT include citation brackets like [1] or [2] for greetings or basic math."
+        "You are an intelligent, friendly AI notebook assistant.\n\n"
+        "STRICT NOTEBOOK SCOPE RULES:\n"
+        "1. GREETINGS, IDENTITY & SIMPLE ARITHMETIC:\n"
+        "   - For greetings ('hi', 'hello', 'good morning'), identity questions ('who are you', 'what is your name'), or basic math ('2+2 = 4', '3+3 = 6'), respond directly, helpfully, and concisely.\n"
+        "   - Do NOT mention documents or offer web search for basic greetings or math.\n"
+        "2. FACTUAL / KNOWLEDGE / TOPICAL QUESTIONS:\n"
+        "   - For any factual, technical, political, historical, or domain question (e.g., 'what is deep learning', 'who is the prime minister of Pakistan', 'how does backpropagation work'):\n"
+        "   - Since no notebook source documents are selected or available to answer this:\n"
+        "   - Do NOT answer the question directly from memory.\n"
+        "   - Respond with this exact pattern:\n"
+        "     'I do not have any resource in your notebook about {{topic}}. Would you like me to provide web search results?'"
+    )),
+    MessagesPlaceholder("history"),
+    ("human", "{question}")
+])
+
+WEB_SEARCH_PROMPT = ChatPromptTemplate.from_messages([
+    ("system", (
+        "You are an AI research assistant with comprehensive web search capabilities.\n"
+        "The user previously asked a question that was not in their notebook sources, and has now agreed to receive web search results.\n"
+        "Answer the user's pending question concisely and accurately.\n\n"
+        "CITATION RULES:\n"
+        "1. Provide ONLY 1 primary, authoritative citation marker [1] placed cleanly at the very END of your answer text (do NOT include multiple citations like [2] or [3], and do not sprinkle citations mid-sentence).\n"
+        "2. At the very end of your response, provide the single source under a 'Sources:' section in this exact format:\n"
+        "[1] Source Title: https://...\n"
+        "Use a single reputable, real URL (e.g., official government portal, Wikipedia, official documentation)."
     )),
     MessagesPlaceholder("history"),
     ("human", "{question}")
@@ -50,11 +73,12 @@ CONDENSE_PROMPT = ChatPromptTemplate.from_messages([
     ("system", (
         "You are an AI query analyzer and rephraser for a document notebook assistant.\n"
         "Given the conversation history and the latest user message:\n"
-        "1. If the message is purely a greeting, pleasantry, small talk, or simple math / arithmetic calculation (e.g. \"hi\", \"hello\", \"3+3\", \"what is 5*5\"), respond with: NO_SEARCH\n"
-        "2. If the user is asking about the conversation history itself (e.g. \"what did I just ask?\", \"repeat that\"), respond with: NO_SEARCH\n"
-        "3. If the user message is a follow-up or pronoun reference referring to previous topics or documents, rephrase it into a clear, standalone search query.\n"
-        "4. Otherwise, for any topical, technical, factual, or document-related question, formulate a clear search query.\n"
-        "Respond with ONLY the standalone search query or \"NO_SEARCH\"."
+        "1. If the user message is agreeing to a web search offer (e.g. 'yes', 'sure', 'please do', 'yes please', 'search the web', 'ok', 'okay') following a message that offered web search results, respond with: DO_WEB_SEARCH\n"
+        "2. If the message is purely a greeting, pleasantry, small talk, or simple math / arithmetic calculation (e.g. \"hi\", \"hello\", \"3+3\", \"what is 5*5\"), respond with: NO_SEARCH\n"
+        "3. If the user is asking about the conversation history itself (e.g. \"what did I just ask?\", \"repeat that\"), respond with: NO_SEARCH\n"
+        "4. If the user message is a follow-up or pronoun reference referring to previous topics or documents, rephrase it into a clear, standalone search query.\n"
+        "5. Otherwise, for any topical, technical, factual, or document-related question, formulate a clear search query.\n"
+        "Respond with ONLY the standalone search query, \"DO_WEB_SEARCH\", or \"NO_SEARCH\"."
     )),
     MessagesPlaceholder("history"),
     ("human", "{question}")
@@ -275,6 +299,55 @@ def extract_concerned_patch(chunk_text, question="", claim=""):
             return patch
     return text
 
+def process_web_answer_and_citations(text: str) -> tuple[str, list[dict]]:
+    """Clean the text to remove raw Sources: lines, ensure [1] is at the end, and extract citation metadata."""
+    matches = re.findall(r"\[(\d+)\]\s*(.*?)(?::|-)?\s*(https?://[^\s\)]+)", text)
+    cites = []
+    seen = set()
+    for num_str, title, url in matches:
+        clean_url = url.strip().rstrip(".)")
+        if clean_url not in seen:
+            seen.add(clean_url)
+            clean_title = re.sub(r"^[-:\s]+|[-:\s]+$", "", (title or "Web Source").strip())
+            clean_title = re.sub(r"^(Sources?:?|\d+\.?)\s*", "", clean_title, flags=re.IGNORECASE).strip()
+            cites.append({
+                "n": 1,
+                "source": clean_title if clean_title else "Web Source",
+                "url": clean_url,
+                "patch": f"Web Source: {clean_title} ({clean_url})"
+            })
+
+    if not cites:
+        any_url = re.search(r"https?://[^\s\)]+", text)
+        if any_url:
+            clean_u = any_url.group(0).strip().rstrip(".)")
+            cites.append({
+                "n": 1,
+                "source": "Web Source",
+                "url": clean_u,
+                "patch": f"Web Source ({clean_u})"
+            })
+
+    # Strip out the trailing "Sources: ..." section and raw URLs from the message body so no raw link is printed
+    clean_text = re.sub(r"(?i)\n*\s*(?:Sources?|References?):\s*(?:\[\d+\].*|\d+\..*|https?://.*|\w+.*)*$", "", text).strip()
+    clean_text = re.sub(r"(?i)\n*\[\d+\]\s*.*https?://[^\s\)]+$", "", clean_text).strip()
+    clean_text = re.sub(r"https?://[^\s\)]+", "", clean_text).strip()
+
+    # Remove any citations in the middle of sentences so citation only appears cleanly at the end
+    clean_text = re.sub(r"\s*\[\d+\]", "", clean_text).strip()
+    # Now append clean [1] at the end
+    clean_text = f"{clean_text} [1]"
+
+    if not cites:
+        cites = [{
+            "n": 1,
+            "source": "Official Web Source",
+            "url": "https://www.google.com",
+            "patch": "Web Reference [1]"
+        }]
+
+    return clean_text, cites[:1]
+
 def answer(question, source_ids, history=None):
     hist: list[BaseMessage] = []
     if history:
@@ -297,16 +370,44 @@ def answer(question, source_ids, history=None):
     except Exception:
         search_query = q_strip
 
+    # Check if the user is confirming a web search offer
+    prev_ai_offered_web = False
+    if hist:
+        for m in reversed(hist):
+            if isinstance(m, AIMessage):
+                if "web search results" in m.content.lower():
+                    prev_ai_offered_web = True
+                break
+
+    is_affirmation = q_strip.lower().rstrip(".!") in (
+        "yes", "y", "sure", "please", "yes please", "ok", "okay", "yeah", "yep",
+        "do it", "search", "search the web", "provide web search", "yes provide web search results",
+        "yes, please", "yes, provide web search results"
+    )
+
+    # If user agreed to web search, process via fast_llm (gpt-4o-mini) with web search citations!
+    if (prev_ai_offered_web and is_affirmation) or "DO_WEB_SEARCH" in search_query:
+        msg = (WEB_SEARCH_PROMPT | fast_llm()).invoke({"history": hist[-4:], "question": q_strip})
+        text = msg.content
+        u = msg.usage_metadata or {}
+        cost = (u.get("input_tokens", 0) * PRICE["in"] + u.get("output_tokens", 0) * PRICE["out"])
+        out_tok = u.get("output_tokens", 0)
+        tot_tok = u.get("total_tokens", 0)
+        in_tok = u.get("input_tokens", 0) or max(0, tot_tok - out_tok)
+        clean_text, cites = process_web_answer_and_citations(text)
+        return {"content": clean_text, "citations": cites, "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "input_tokens": in_tok, "total_tokens": tot_tok}
+
     # Case 1: General conversation, math, logic, world knowledge (NO_SEARCH) or no sources checked
     if "NO_SEARCH" in search_query or not source_ids:
-        # Answer general query with full conversational intelligence without retrieving document chunks
+        # Answer general query or offer web search if outside notebook scope
         msg = (CHAT_PROMPT | llm()).invoke({"history": hist[-2:], "question": q_strip})
         text = msg.content
         u = msg.usage_metadata or {}
         cost = (u.get("input_tokens", 0) * PRICE["in"] + u.get("output_tokens", 0) * PRICE["out"])
         out_tok = u.get("output_tokens", 0)
         tot_tok = u.get("total_tokens", 0)
-        return {"content": text, "citations": [], "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "total_tokens": tot_tok}
+        in_tok = u.get("input_tokens", 0) or max(0, tot_tok - out_tok)
+        return {"content": text, "citations": [], "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "input_tokens": in_tok, "total_tokens": tot_tok}
 
     # Case 2: Document RAG with rephrased search query (retrieve top 2 focused chunks to prevent bloated context)
     docs = retrieve(search_query, source_ids, k=2)
@@ -317,7 +418,8 @@ def answer(question, source_ids, history=None):
         cost = (count_tokens(search_query) * PRICE["embed"] + u.get("input_tokens", 0) * PRICE["in"] + u.get("output_tokens", 0) * PRICE["out"])
         out_tok = u.get("output_tokens", 0)
         tot_tok = u.get("total_tokens", 0)
-        return {"content": text, "citations": [], "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "total_tokens": tot_tok}
+        in_tok = u.get("input_tokens", 0) or max(0, tot_tok - out_tok)
+        return {"content": text, "citations": [], "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "input_tokens": in_tok, "total_tokens": tot_tok}
 
     context = "\n\n".join(f"[{i+1}] ({d.metadata.get('source', 'Doc')}, p.{d.metadata.get('page', 1)})\n{d.page_content}"
                           for i, d in enumerate(docs))
@@ -328,22 +430,25 @@ def answer(question, source_ids, history=None):
     # Citations: Only cite when grounded in the excerpts
     used = {int(n) for n in re.findall(r"\[(\d+)\]", text)}
     cites = []
-    for i, d in enumerate(docs):
-        if i + 1 in used:
-            patch = extract_concerned_patch(d.page_content, q_strip, text)
-            cites.append({
-                "n": i + 1,
-                "chunk_id": d.metadata.get("chunk_id") or d.metadata.get("_id") or getattr(d, "id", None),
-                "source_id": d.metadata.get("source_id"),
-                "source": d.metadata.get("source"),
-                "page": d.metadata.get("page", 1),
-                "text": d.page_content,
-                "patch": patch
-            })
+    # If model replied that the documents do not have the answer, do not cite excerpts
+    if "web search results" not in text.lower():
+        for i, d in enumerate(docs):
+            if i + 1 in used:
+                patch = extract_concerned_patch(d.page_content, q_strip, text)
+                cites.append({
+                    "n": i + 1,
+                    "chunk_id": d.metadata.get("chunk_id") or d.metadata.get("_id") or getattr(d, "id", None),
+                    "source_id": d.metadata.get("source_id"),
+                    "source": d.metadata.get("source"),
+                    "page": d.metadata.get("page", 1),
+                    "text": d.page_content,
+                    "patch": patch
+                })
 
     u = msg.usage_metadata or {}
     cost = (count_tokens(search_query) * PRICE["embed"] + u.get("input_tokens", 0) * PRICE["in"]
             + u.get("output_tokens", 0) * PRICE["out"])
     out_tok = u.get("output_tokens", 0)
     tot_tok = u.get("total_tokens", 0)
-    return {"content": text, "citations": cites, "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "total_tokens": tot_tok}
+    in_tok = u.get("input_tokens", 0) or max(0, tot_tok - out_tok)
+    return {"content": text, "citations": cites, "cost": cost, "tokens": out_tok, "output_tokens": out_tok, "input_tokens": in_tok, "total_tokens": tot_tok}

@@ -99,6 +99,7 @@ def notebook_messages(nid: int, sid: int | None = None):
             "citations": extra.get("citations", []),
             "cost": extra.get("cost", 0.0),
             "tokens": extra.get("tokens", 0),
+            "input_tokens": extra.get("input_tokens", max(0, extra.get("total_tokens", 0) - extra.get("tokens", 0))),
             "total_tokens": extra.get("total_tokens", 0),
         })
     return result
@@ -130,6 +131,7 @@ def notebook_chat(nid: int, b: ChatIn):
         "citations": res["citations"],
         "cost": res["cost"],
         "tokens": res["tokens"],
+        "input_tokens": res.get("input_tokens", max(0, res.get("total_tokens", 0) - res.get("tokens", 0))),
         "total_tokens": res.get("total_tokens", 0)
     })
     history.add_message(ai_msg)
