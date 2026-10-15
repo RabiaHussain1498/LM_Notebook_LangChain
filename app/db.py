@@ -9,12 +9,17 @@ _lock = threading.Lock()
 _conn.executescript("""
 CREATE TABLE IF NOT EXISTS notebooks(id INTEGER PRIMARY KEY, name TEXT);
 CREATE TABLE IF NOT EXISTS sources(id INTEGER PRIMARY KEY, notebook_id INT, name TEXT,
-  n_chunks INT, cost REAL DEFAULT 0, checked INT DEFAULT 1);
+  n_chunks INT, cost REAL DEFAULT 0, checked INT DEFAULT 1, full_text TEXT);
 CREATE TABLE IF NOT EXISTS chunks(id INTEGER PRIMARY KEY, source_id INT, idx INT, page INT, text TEXT);
 CREATE TABLE IF NOT EXISTS sessions(id INTEGER PRIMARY KEY, notebook_id INT, title TEXT);
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, session_id INT, role TEXT,
   content TEXT, citations TEXT DEFAULT '[]', cost REAL DEFAULT 0, tokens INT DEFAULT 0);
 """)
+try:
+    _conn.execute("ALTER TABLE sources ADD COLUMN full_text TEXT")
+except Exception:
+    pass
+
 
 def q(sql, args=(), one=False):
     with _lock:

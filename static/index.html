@@ -1,164 +1,832 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Notebook</title>
-<style>
-:root{--bg:#0f1115;--panel:#161920;--card:#1d212b;--line:#262a33;--fg:#e7e9ee;--mut:#8b91a0;--acc:#4f8cff;--hl:#f59e0b;--hl-bg:#261f0b}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-header{display:flex;gap:12px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-shrink:0}
-header h1{font-size:17px;margin:0;flex:1;display:flex;align-items:center;gap:8px}
-select,button,input{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit}
-button{cursor:pointer;transition:border-color .15s,background .15s}button:hover{border-color:var(--acc)}
-.pill{border:1px solid var(--line);border-radius:999px;padding:4px 12px;color:var(--mut);font-size:13px;background:var(--bg)}
-main{flex:1;display:flex;min-height:0;position:relative}
+<!doctype html>
+<html>
 
-/* Left panel: contains both sources list and doc viewer */
-#left{width:380px;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;flex-shrink:0}
-.panel-view{flex:1;display:flex;flex-direction:column;min-height:0;padding:14px;overflow:hidden}
-#left button.add{width:100%;border-radius:999px;margin-bottom:10px;background:var(--acc);color:#fff;border:none;font-weight:600;padding:8px 14px}
-#left button.add:hover{opacity:.9}
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Notebook</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161920;
+      --card: #1d212b;
+      --line: #262a33;
+      --fg: #e7e9ee;
+      --mut: #8b91a0;
+      --acc: #4f8cff;
+      --hl: #f59e0b;
+      --hl-bg: #261f0b
+    }
 
-.sources-toolbar{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;margin-bottom:8px;border-bottom:1px solid var(--line);font-size:13px}
-.select-all-box{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;color:var(--fg);font-weight:500}
-.select-all-box input{cursor:pointer;accent-color:var(--acc);width:16px;height:16px;margin:0}
+    * {
+      box-sizing: border-box
+    }
 
-#srcs{flex:1;overflow-y:auto;padding-right:4px}
-.src{display:flex;gap:10px;align-items:flex-start;padding:10px 8px;border-radius:8px;border-bottom:1px solid var(--line);transition:background .15s}
-.src:hover{background:var(--card)}
-.src input[type="checkbox"]{margin-top:3px;cursor:pointer;accent-color:var(--acc);width:16px;height:16px}
-.src .nm{flex:1;cursor:pointer;word-break:break-word;font-size:14px;font-weight:500}
-.src .nm:hover{color:var(--acc)}
-.src .meta-row{margin-top:4px;display:flex;gap:6px;flex-wrap:wrap}
-.badge{font:11px monospace;color:var(--mut);background:#0f1115;border:1px solid var(--line);border-radius:6px;padding:1px 6px}
-.x{border:none;background:none;color:var(--mut);padding:0 6px;cursor:pointer;border-radius:6px}
-.x:hover{color:#ff6b6b;background:#ff6b6b15}
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 15px/1.55 system-ui, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
 
-/* Doc preview view in left sidebar */
-.doc-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:10px}
-.back-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:5px 10px;border-radius:6px}
-.back-btn:hover{color:var(--acc);border-color:var(--acc)}
-.doc-meta-bar{margin-bottom:10px;padding:8px 10px;background:var(--card);border-radius:8px;border:1px solid var(--line)}
-.doc-meta-bar b{display:block;font-size:14px;word-break:break-word;color:var(--fg)}
-#vbody{flex:1;overflow-y:auto;padding-right:4px}
-.ck{white-space:pre-wrap;padding:10px 12px;margin-bottom:8px;border-radius:8px;font-size:13px;color:#c9ccd6;background:var(--card);border:1px solid var(--line);transition:border-color .2s,background .2s}
-.ck-badge{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.ck small{color:var(--mut);font:11px monospace}
-.ck.target{border-left:3px solid var(--hl);background:var(--hl-bg);border-color:var(--hl)}
-.hl-tag{font:10px system-ui;background:var(--hl);color:#000;font-weight:700;border-radius:4px;padding:1px 6px;text-transform:uppercase}
-mark.rel-hl{background:#f59e0b44;color:#ffe885;border-bottom:2px solid var(--hl);border-radius:3px;padding:1px 4px;font-weight:600}
+    header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      flex-shrink: 0
+    }
 
-/* Center Chat */
-#center{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-#chat{flex:1;overflow-y:auto;padding:24px 0}
-.wrap{max-width:820px;margin:0 auto;padding:0 24px;width:100%}
-.u{display:flex;justify-content:flex-end;margin:16px 0}
-.u div{background:#232733;border-radius:18px;padding:10px 18px;max-width:80%;font-size:15px;line-height:1.5}
-.a{margin:16px 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px}
-.a .body{font-size:15px;line-height:1.6}
-.meta{font:12px monospace;color:var(--mut);margin-top:8px}
-code{background:#232733;padding:1px 6px;border-radius:4px;font-family:monospace;font-size:13px}
-.cite{display:inline-flex;align-items:center;justify-content:center;font:11px monospace;font-weight:700;border:1px solid var(--acc);color:var(--acc);background:#4f8cff12;border-radius:4px;padding:0 6px;margin:0 3px;cursor:pointer;vertical-align:baseline;transition:all .15s}
-.cite:hover{background:var(--acc);color:#fff}
-#tip{position:fixed;display:none;max-width:400px;background:#1d212b;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px;z-index:20;box-shadow:0 12px 30px #000c;line-height:1.45}
-#tip b{display:block;color:var(--acc);margin-bottom:6px;font-size:12px}
-#tip .tip-rel{color:#ffd166;font-weight:500}
-#bar{padding:14px 0 12px;background:var(--panel);border-top:1px solid var(--line)}
-#bar .wrap{display:flex;gap:10px}
-#bar input{flex:1;border-radius:999px;padding:12px 20px;background:var(--card);border:1px solid var(--line);font-size:15px}
-#bar input:focus{outline:none;border-color:var(--acc)}
-#bar button{border-radius:999px;padding:0 22px;background:var(--acc);color:#fff;border:none;font-weight:600}
-#askbtn{position:fixed;display:none;z-index:30;background:var(--acc);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;box-shadow:0 4px 12px #0008}
-</style></head><body>
-<header>
- <h1>📓 <span id="nbname">Notebook</span></h1>
- <select id="nbsel"></select><button onclick="newNb()">+ Notebook</button>
- <select id="sesel"></select><button onclick="newSession()">+ Chat</button>
- <span class="pill">Total cost: <b id="cost">$0.0000</b></span>
-</header>
-<main>
- <!-- Left Panel: Sources List OR Document Preview on Left Side -->
- <div id="left">
-  <!-- View 1: Sources List -->
-  <div id="view-sources" class="panel-view">
-   <button class="add" onclick="$('#file').click()">+ Add sources</button>
-   <input type="file" id="file" accept=".pdf,.txt,.md" multiple hidden onchange="upload(this.files)">
-   <div id="status" class="meta" style="margin-bottom:6px"></div>
-   <div class="sources-toolbar">
-    <label class="select-all-box">
-     <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)">
-     <span>Select all</span>
-    </label>
-    <span id="select-count" class="badge">0 selected</span>
-   </div>
-   <div id="srcs"></div>
-  </div>
+    header h1 {
+      font-size: 17px;
+      margin: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
 
-  <!-- View 2: Document Preview on Left Side -->
-  <div id="view-doc" class="panel-view" style="display:none">
-   <div class="doc-header">
-    <button class="back-btn" onclick="closeDocViewer()">← Back to sources</button>
-    <button class="x" onclick="closeDocViewer()" title="Close viewer">✕</button>
-   </div>
-   <div class="doc-meta-bar">
-    <b id="doc-title"></b>
-    <div id="doc-sub" class="meta"></div>
-   </div>
-   <div id="vbody"></div>
-  </div>
- </div>
+    select,
+    button,
+    input {
+      background: var(--card);
+      color: var(--fg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font: inherit
+    }
 
- <!-- Center: Chat Canvas -->
- <div id="center">
-  <div id="chat"><div class="wrap" id="msgs"></div></div>
-  <div id="bar">
-   <div class="wrap">
-    <input id="q" placeholder="Ask a question about your checked sources" onkeydown="if(event.key==='Enter')send()">
-    <button onclick="send()">Send</button>
-   </div>
-  </div>
- </div>
-</main>
+    button {
+      cursor: pointer;
+      transition: border-color .15s, background .15s
+    }
 
-<div id="tip"></div>
-<button id="askbtn" onmousedown="event.preventDefault()" onclick="askSel()">Ask about this</button>
+    button:hover {
+      border-color: var(--acc)
+    }
 
-<script>
-const $=s=>document.querySelector(s);
-const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const money=n=>'$'+(+n).toFixed(n<0.01?6:4);
-async function api(url,opt){const r=await fetch(url,opt);if(!r.ok){let t=await r.text();try{t=JSON.parse(t).detail||t}catch(e){}throw new Error(t)}return r.json()}
-const post=(u,b)=>api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})});
-let nb=null,sess=null,cites={},cachedSources=[];
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 12px;
+      color: var(--mut);
+      font-size: 13px;
+      background: var(--bg)
+    }
 
-async function init(){
-  let list=await api('/api/notebooks');
-  if(!list.length){await post('/api/notebooks',{name:'My notebook'});list=await api('/api/notebooks')}
-  $('#nbsel').innerHTML=list.map(n=>`<option value="${n.id}">${esc(n.name)}</option>`).join('');
-  $('#nbsel').onchange=()=>openNb(+$('#nbsel').value);
-  openNb(list[0].id);
-}
-async function newNb(){const n=prompt('Notebook name');if(!n)return;const r=await post('/api/notebooks',{name:n});
-  $('#nbsel').insertAdjacentHTML('beforeend',`<option value="${r.id}">${esc(n)}</option>`);$('#nbsel').value=r.id;openNb(r.id)}
-async function openNb(id){nb=id;sess=null;closeDocViewer();await refresh(true)}
+    .del-nb-btn {
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.08);
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
 
-async function refresh(pick){
-  const d=await api('/api/notebooks/'+nb);
-  $('#nbname').textContent=d.name;
-  $('#cost').textContent=money(d.total_cost);
-  cachedSources=d.sources||[];
+    .del-nb-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+      color: #fff;
+    }
 
-  const checkedCount=cachedSources.filter(s=>s.checked).length;
-  const totalCount=cachedSources.length;
-  const sa=$('#select-all-cb');
-  if(sa){
-    sa.checked=totalCount>0&&checkedCount===totalCount;
-    sa.indeterminate=checkedCount>0&&checkedCount<totalCount;
-  }
-  const sc=$('#select-count');
-  if(sc)sc.textContent=`${checkedCount}/${totalCount} selected`;
+    main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      position: relative
+    }
 
-  $('#srcs').innerHTML=cachedSources.map(s=>`
+    /* Left panel: contains both sources list and doc viewer */
+    #left {
+      width: 380px;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex-shrink: 0
+    }
+
+    .panel-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 14px;
+      overflow: hidden
+    }
+
+    #left button.add {
+      width: 100%;
+      border-radius: 999px;
+      margin-bottom: 10px;
+      background: var(--acc);
+      color: #fff;
+      border: none;
+      font-weight: 600;
+      padding: 8px 14px
+    }
+
+    #left button.add:hover {
+      opacity: .9
+    }
+
+    .sources-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 4px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px
+    }
+
+    .select-all-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      color: var(--fg);
+      font-weight: 500
+    }
+
+    .select-all-box input {
+      cursor: pointer;
+      accent-color: var(--acc);
+      width: 16px;
+      height: 16px;
+      margin: 0
+    }
+
+    #srcs {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px
+    }
+
+    .src {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 8px;
+      border-radius: 8px;
+      border-bottom: 1px solid var(--line);
+      transition: background .15s
+    }
+
+    .src:hover {
+      background: var(--card)
+    }
+
+    .src input[type="checkbox"] {
+      margin-top: 3px;
+      cursor: pointer;
+      accent-color: var(--acc);
+      width: 16px;
+      height: 16px
+    }
+
+    .src .nm {
+      flex: 1;
+      cursor: pointer;
+      word-break: break-word;
+      font-size: 14px;
+      font-weight: 500
+    }
+
+    .src .nm:hover {
+      color: var(--acc)
+    }
+
+    .src .meta-row {
+      margin-top: 4px;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap
+    }
+
+    .badge {
+      font: 11px monospace;
+      color: var(--mut);
+      background: #0f1115;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 1px 6px
+    }
+
+    .x {
+      border: none;
+      background: none;
+      color: var(--mut);
+      padding: 0 6px;
+      cursor: pointer;
+      border-radius: 6px
+    }
+
+    .x:hover {
+      color: #ff6b6b;
+      background: #ff6b6b15
+    }
+
+    /* Doc preview view in left sidebar */
+    .doc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 10px
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      padding: 5px 10px;
+      border-radius: 6px
+    }
+
+    .back-btn:hover {
+      color: var(--acc);
+      border-color: var(--acc)
+    }
+
+    .doc-meta-bar {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: var(--card);
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+
+    .doc-meta-bar b {
+      display: block;
+      font-size: 14px;
+      word-break: break-word;
+      color: var(--fg);
+    }
+
+    .viewer-tabs {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      background: #141721;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+
+    .vtab {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      border: none;
+      color: var(--mut);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .15s ease;
+      text-align: center;
+    }
+
+    .vtab:hover {
+      color: var(--fg);
+    }
+
+    .vtab.active {
+      background: var(--card);
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    #vbody {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    /* Document View Page Styling */
+    .doc-page {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+
+    .doc-page.has-hl {
+      border-color: rgba(245, 158, 11, 0.5);
+    }
+
+    .doc-page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #1a1e29;
+      padding: 7px 12px;
+      font-size: 11px;
+      font-family: monospace;
+      color: var(--mut);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .doc-page-body {
+      padding: 14px 16px;
+      font-size: 13.5px;
+      line-height: 1.65;
+      color: #d1d5db;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Chunks View Styling */
+    .ck {
+      white-space: pre-wrap;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #c9ccd6;
+      background: var(--card);
+      border: 1px solid var(--line);
+      transition: border-color .2s, background .2s, box-shadow .2s;
+    }
+
+    .ck-badge {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .ck small {
+      color: var(--mut);
+      font: 11px monospace;
+    }
+
+    .ck.target {
+      border-left: 3px solid var(--hl);
+      background: var(--hl-bg);
+      border-color: var(--hl);
+    }
+
+    .flash-target {
+      animation: pulseBorder 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseBorder {
+      0% {
+        box-shadow: 0 0 4px #f59e0b;
+        border-color: #f59e0b;
+      }
+      100% {
+        box-shadow: 0 0 16px rgba(245, 158, 11, 0.5);
+        border-color: #ffd166;
+      }
+    }
+
+    .hl-tag {
+      font: 10px system-ui;
+      background: var(--hl);
+      color: #000;
+      font-weight: 700;
+      border-radius: 4px;
+      padding: 1px 6px;
+      text-transform: uppercase;
+    }
+
+    mark.rel-hl {
+      background: rgba(245, 158, 11, 0.35);
+      color: #ffe885;
+      border-bottom: 2px solid var(--hl);
+      border-radius: 3px;
+      padding: 1px 4px;
+      font-weight: 600;
+      display: inline;
+    }
+
+    /* Center Chat */
+    #center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      background: var(--bg)
+    }
+
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 0
+    }
+
+    .wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 24px;
+      width: 100%
+    }
+
+    .u {
+      display: flex;
+      justify-content: flex-end;
+      margin: 16px 0
+    }
+
+    .u div {
+      background: #232733;
+      border-radius: 18px;
+      padding: 10px 18px;
+      max-width: 80%;
+      font-size: 15px;
+      line-height: 1.5
+    }
+
+    .a {
+      margin: 16px 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 20px
+    }
+
+    .a .body {
+      font-size: 15px;
+      line-height: 1.6
+    }
+
+    .a.processing {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin: 16px 0;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    .processing-content {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .processing-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #4f8cff26;
+      border-top-color: var(--acc);
+      border-radius: 50%;
+      animation: spinProc 0.75s linear infinite;
+    }
+
+    .processing-text {
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .typing-dots {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 2px;
+    }
+
+    .typing-dots span {
+      width: 5px;
+      height: 5px;
+      background: var(--acc);
+      border-radius: 50%;
+      display: inline-block;
+      animation: dotBounce 1.4s infinite ease-in-out both;
+    }
+
+    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0s; }
+
+    @keyframes dotBounce {
+      0%, 80%, 100% {
+        transform: scale(0.6);
+        opacity: 0.35;
+      }
+      40% {
+        transform: scale(1.15);
+        opacity: 1;
+      }
+    }
+
+    @keyframes spinProc {
+      to { transform: rotate(360deg); }
+    }
+
+    .meta {
+      font: 12px monospace;
+      color: var(--mut);
+      margin-top: 8px
+    }
+
+    code {
+      background: #232733;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px
+    }
+
+    .cite {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font: 11px monospace;
+      font-weight: 700;
+      border: 1px solid var(--acc);
+      color: var(--acc);
+      background: #4f8cff12;
+      border-radius: 4px;
+      padding: 0 6px;
+      margin: 0 3px;
+      cursor: pointer;
+      vertical-align: baseline;
+      transition: all .15s
+    }
+
+    .cite:hover {
+      background: var(--acc);
+      color: #fff
+    }
+
+    #tip {
+      position: fixed;
+      display: none;
+      max-width: 440px;
+      min-width: 280px;
+      background: #181b24;
+      border: 1px solid #374151;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      z-index: 1000;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.65);
+      line-height: 1.45;
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .tip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 6px;
+      gap: 10px;
+    }
+
+    .tip-header b {
+      color: var(--fg);
+      font-size: 12.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tip-badge {
+      background: rgba(79, 140, 255, 0.18);
+      color: var(--acc);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .tip-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: var(--mut);
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .tip-rel {
+      color: #fef3c7;
+      background: rgba(0,0,0,0.3);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      max-height: 220px;
+      overflow-y: auto;
+      border-left: 3px solid var(--hl);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .tip-foot {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--acc);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    #bar {
+      padding: 14px 0 12px;
+      background: var(--panel);
+      border-top: 1px solid var(--line)
+    }
+
+    #bar .wrap {
+      display: flex;
+      gap: 10px
+    }
+
+    #bar input {
+      flex: 1;
+      border-radius: 999px;
+      padding: 12px 20px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      font-size: 15px
+    }
+
+    #bar input:focus {
+      outline: none;
+      border-color: var(--acc)
+    }
+
+    #bar button {
+      border-radius: 999px;
+      padding: 0 22px;
+      background: var(--acc);
+      color: #fff;
+      border: none;
+      font-weight: 600
+    }
+
+    #bar button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: #374151;
+    }
+
+    #bar input:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    #askbtn {
+      position: fixed;
+      display: none;
+      z-index: 30;
+      background: var(--acc);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      box-shadow: 0 4px 12px #0008
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>📓 <span id="nbname">Notebook</span></h1>
+    <select id="nbsel"></select>
+    <button onclick="newNb()">+ Notebook</button>
+    <button class="del-nb-btn" onclick="deleteCurrentNb()" title="Delete current notebook">🗑 Delete</button>
+    <span class="pill">Total cost: <b id="cost">$0.0000</b></span>
+  </header>
+  <main>
+    <!-- Left Panel: Sources List OR Document Preview on Left Side -->
+    <div id="left">
+      <!-- View 1: Sources List -->
+      <div id="view-sources" class="panel-view">
+        <button class="add" onclick="$('#file').click()">+ Add sources</button>
+        <input type="file" id="file" accept=".pdf,.txt,.md" multiple hidden onchange="upload(this.files)">
+        <div id="status" class="meta" style="margin-bottom:6px"></div>
+        <div class="sources-toolbar">
+          <label class="select-all-box">
+            <input type="checkbox" id="select-all-cb" onchange="toggleSelectAll(this.checked)">
+            <span>Select all</span>
+          </label>
+          <span id="select-count" class="badge">0 selected</span>
+        </div>
+        <div id="srcs"></div>
+      </div>
+
+      <!-- View 2: Document Preview on Left Side -->
+      <div id="view-doc" class="panel-view" style="display:none">
+        <div class="doc-header">
+          <button class="back-btn" onclick="closeDocViewer()">← Back to sources</button>
+          <button class="x" onclick="closeDocViewer()" title="Close viewer">✕</button>
+        </div>
+        <div class="doc-meta-bar">
+          <b id="doc-title"></b>
+          <div id="doc-sub" class="meta"></div>
+          <div class="viewer-tabs">
+            <button id="tab-doc" class="vtab active" onclick="switchViewerTab('doc')">📄 Document</button>
+            <button id="tab-chunks" class="vtab" onclick="switchViewerTab('chunks')">🧩 Chunks</button>
+          </div>
+        </div>
+        <div id="vbody"></div>
+      </div>
+    </div>
+
+    <!-- Center: Chat Canvas -->
+    <div id="center">
+      <div id="chat">
+        <div class="wrap" id="msgs"></div>
+      </div>
+      <div id="bar">
+        <div class="wrap">
+          <input id="q" placeholder="Ask a question about your checked sources"
+            onkeydown="if(event.key==='Enter')send()">
+          <button id="send-btn" onclick="send()">Send</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="tip"></div>
+  <button id="askbtn" onmousedown="event.preventDefault()" onclick="askSel()">Ask about this</button>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const money = n => '$' + (+n).toFixed(n < 0.01 ? 6 : 4);
+    async function api(url, opt) { const r = await fetch(url, opt); if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).detail || t } catch (e) { } throw new Error(t) } return r.json() }
+    const post = (u, b) => api(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+    let nb = null, sess = null, cites = {}, cachedSources = [];
+
+    async function init() {
+      let list = await api('/api/notebooks');
+      if (!list.length) { await post('/api/notebooks', { name: 'My notebook' }); list = await api('/api/notebooks') }
+      $('#nbsel').innerHTML = list.map(n => `<option value="${n.id}">${esc(n.name)}</option>`).join('');
+      $('#nbsel').onchange = () => openNb(+$('#nbsel').value);
+      openNb(list[0].id);
+    }
+    async function newNb() {
+      const n = prompt('Notebook name'); if (!n) return; const r = await post('/api/notebooks', { name: n });
+      $('#nbsel').insertAdjacentHTML('beforeend', `<option value="${r.id}">${esc(n)}</option>`); $('#nbsel').value = r.id; openNb(r.id)
+    }
+    async function deleteCurrentNb() {
+      const currentOption = $(`#nbsel option[value="${nb}"]`);
+      const name = currentOption ? currentOption.textContent : 'this notebook';
+      if (!confirm(`Are you sure you want to delete notebook "${name}" and all its sources and messages?`)) return;
+      try {
+        await api(`/api/notebooks/${nb}`, { method: 'DELETE' });
+        await init();
+      } catch (e) {
+        alert('Failed to delete notebook: ' + e.message);
+      }
+    }
+    async function openNb(id) {
+      nb = id;
+      $('#nbsel').value = id;
+      closeDocViewer();
+      await refresh(true);
+    }
+
+    async function refresh(pick) {
+      const d = await api('/api/notebooks/' + nb);
+      $('#nbname').textContent = d.name;
+      $('#cost').textContent = money(d.total_cost);
+      cachedSources = d.sources || [];
+
+      const checkedCount = cachedSources.filter(s => s.checked).length;
+      const totalCount = cachedSources.length;
+      const sa = $('#select-all-cb');
+      if (sa) {
+        sa.checked = totalCount > 0 && checkedCount === totalCount;
+        sa.indeterminate = checkedCount > 0 && checkedCount < totalCount;
+      }
+      const sc = $('#select-count');
+      if (sc) sc.textContent = `${checkedCount}/${totalCount} selected`;
+
+      $('#srcs').innerHTML = cachedSources.map(s => `
     <div class="src">
-      <input type="checkbox" ${s.checked?'checked':''} onchange="check(${s.id},this.checked)">
+      <input type="checkbox" ${s.checked ? 'checked' : ''} onchange="check(${s.id},this.checked)">
       <div class="nm" onclick="openViewer(${s.id})">
         <div>${esc(s.name)}</div>
         <div class="meta-row">
@@ -167,135 +835,448 @@ async function refresh(pick){
         </div>
       </div>
       <button class="x" onclick="del(${s.id})" title="Delete source">🗑</button>
-    </div>`).join('')||'<p class="meta" style="text-align:center;padding:20px 0">No sources yet.<br>Click "+ Add sources" above to upload.</p>';
+    </div>`).join('') || '<p class="meta" style="text-align:center;padding:20px 0">No sources yet.<br>Click "+ Add sources" above to upload.</p>';
 
-  $('#sesel').innerHTML=d.sessions.map(s=>`<option value="${s.id}">${esc(s.title)}</option>`).join('');
-  $('#sesel').onchange=()=>loadSession(+$('#sesel').value);
-  if(pick){if(d.sessions.length)loadSession(d.sessions[0].id);else{sess=null;$('#msgs').innerHTML=''}}
-  else if(sess)$('#sesel').value=sess;
-}
-
-async function check(id,c){
-  await api('/api/sources/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({checked:c})});
-  refresh();
-}
-
-async function toggleSelectAll(checked){
-  try{
-    await api(`/api/notebooks/${nb}/sources/toggle-all`,{
-      method:'PATCH',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({checked:checked})
-    });
-  }catch(e){
-    // Fallback: update individually if batch fails
-    for(const s of cachedSources){
-      await api('/api/sources/'+s.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({checked})});
+      const sesel = $('#sesel');
+      if (sesel) {
+        sesel.innerHTML = d.sessions.map(s => `<option value="${s.id}">${esc(s.title)}</option>`).join('');
+        sesel.onchange = () => loadSession(+sesel.value);
+        if (sess) sesel.value = sess;
+      }
+      if (pick) {
+        await loadNotebookMessages(nb);
+      }
     }
-  }
-  refresh();
-}
 
-async function del(id){if(confirm('Delete this source?')){await api('/api/sources/'+id,{method:'DELETE'});closeDocViewer();refresh()}}
-async function upload(files){
-  for(const f of files){
-    $('#status').textContent='Processing '+f.name+'…';
-    const fd=new FormData();fd.append('file',f);
-    try{await api(`/api/notebooks/${nb}/sources`,{method:'POST',body:fd})}catch(e){alert(f.name+': '+e.message)}
-  }
-  $('#status').textContent='';$('#file').value='';refresh();
-}
+    async function loadNotebookMessages(nid) {
+      $('#msgs').innerHTML = '';
+      cites = {};
+      try {
+        const msgs = await api(`/api/notebooks/${nid}/messages`);
+        msgs.forEach(addMsg);
+      } catch (e) {
+        console.error('Failed to load notebook messages:', e);
+      }
+    }
 
-async function newSession(){const s=await post(`/api/notebooks/${nb}/sessions`);sess=s.id;await refresh();$('#sesel').value=s.id;$('#msgs').innerHTML=''}
-async function loadSession(id){sess=id;$('#sesel').value=id;$('#msgs').innerHTML='';cites={};
-  (await api(`/api/sessions/${id}/messages`)).forEach(addMsg)}
+    async function check(id, c) {
+      await api('/api/sources/' + id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checked: c }) });
+      await refresh();
+    }
 
-function fmt(m){
-  let h=esc(m.content).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
-  return h.replace(/\[(\d+)\]/g,(x,n)=>(m.citations||[]).find(c=>c.n==n)?`<span class="cite" data-m="${m.id}" data-n="${n}">${n}</span>`:x)}
+    async function toggleSelectAll(checked) {
+      try {
+        await api(`/api/notebooks/${nb}/sources/toggle-all`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ checked: checked })
+        });
+      } catch (e) {
+        console.error('toggle-all failed, falling back to individual updates:', e);
+        // Fallback: update individually if batch fails
+        for (const s of cachedSources) {
+          await api('/api/sources/' + s.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checked }) });
+        }
+      }
+      await refresh();
+    }
 
-function addMsg(m){
-  const box=$('#msgs');
-  if(m.role==='user'){box.insertAdjacentHTML('beforeend',`<div class="u"><div>${esc(m.content)}</div></div>`)}
-  else{cites[m.id]=m.citations||[];
-    box.insertAdjacentHTML('beforeend',`<div class="a"><div class="body">${fmt(m)}</div>
-     <div class="meta">⚡ ${money(m.cost||0)}${m.tokens?' · '+m.tokens+' tokens':''}</div></div>`)}
-  $('#chat').scrollTop=1e9}
+    async function del(id) { if (confirm('Delete this source?')) { await api('/api/sources/' + id, { method: 'DELETE' }); closeDocViewer(); refresh() } }
+    async function upload(files) {
+      for (const f of files) {
+        $('#status').textContent = 'Processing ' + f.name + '…';
+        const fd = new FormData(); fd.append('file', f);
+        try { await api(`/api/notebooks/${nb}/sources`, { method: 'POST', body: fd }) } catch (e) { alert(f.name + ': ' + e.message) }
+      }
+      $('#status').textContent = ''; $('#file').value = ''; refresh();
+    }
 
-async function send(text){
-  const q=(text||$('#q').value).trim();if(!q)return;$('#q').value='';
-  if(!sess){const s=await post(`/api/notebooks/${nb}/sessions`);sess=s.id}
-  addMsg({role:'user',content:q});
-  try{addMsg(await post(`/api/sessions/${sess}/chat`,{question:q}))}catch(e){addMsg({role:'assistant',content:'Error: '+e.message,citations:[]})}
-  refresh();
-}
+    async function newSession() { const s = await post(`/api/notebooks/${nb}/sessions`); sess = s.id; await refresh(); const sel = $('#sesel'); if (sel) sel.value = s.id; $('#msgs').innerHTML = '' }
+    async function loadSession(id) {
+      sess = id; const sel = $('#sesel'); if (sel) sel.value = id; $('#msgs').innerHTML = ''; cites = {};
+      (await api(`/api/sessions/${id}/messages`)).forEach(addMsg)
+    }
 
-// Viewer and Highlights on Left Side
-function closeDocViewer(){
-  $('#view-doc').style.display='none';
-  $('#view-sources').style.display='flex';
-}
+    function fmt(m) {
+      let h = esc(m.content).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+      return h.replace(/\[(\d+)\]/g, (x, n) => {
+        const hasCite = (m.citations || []).some(c => String(c.n) === String(n));
+        return hasCite ? ` <span class="cite" data-m="${m.id}" data-n="${n}" title="Click to view citation [${n}]">[${n}]</span>` : x;
+      });
+    }
 
-async function openViewer(sid, chunkId = null, citeNum = null){
-  const d=await api(`/api/sources/${sid}/chunks`);
-  $('#doc-title').textContent = d.source.name;
-  $('#doc-sub').textContent = `${d.chunks.length} chunks · ${money(d.source.cost)}`;
+    function addMsg(m) {
+      const box = $('#msgs');
+      if (m.role === 'user') {
+        box.insertAdjacentHTML('beforeend', `<div class="u"><div>${esc(m.content)}</div></div>`);
+      } else {
+        const mid = m.id || ('m_' + Date.now() + '_' + Math.random().toString(36).slice(2));
+        m.id = mid;
+        cites[mid] = m.citations || [];
+        const tokenDisplay = m.tokens
+          ? (m.total_tokens && m.total_tokens !== m.tokens
+              ? `${m.tokens} output tokens (${m.total_tokens} total)`
+              : `${m.tokens} tokens`)
+          : '';
+        const tokenTooltip = m.total_tokens
+          ? `title="${m.tokens || 0} output tokens generated · ${m.total_tokens} total tokens consumed (prompt + excerpts + answer)"`
+          : '';
+        box.insertAdjacentHTML('beforeend', `<div class="a"><div class="body">${fmt(m)}</div>
+     <div class="meta" ${tokenTooltip}>⚡ ${money(m.cost || 0)}${tokenDisplay ? ' · ' + tokenDisplay : ''}</div></div>`);
+      }
+      $('#chat').scrollTop = 1e9;
+    }
 
-  $('#vbody').innerHTML = d.chunks.map(c => {
-    const isTarget = chunkId && c.id == chunkId;
-    return `
-      <div class="ck ${isTarget?'target':''}" id="ck${c.id}">
-        <div class="ck-badge">
-          <small>chunk ${c.idx+1} · p.${c.page}</small>
-          ${isTarget ? `<span class="hl-tag">🎯 Cited Excerpt ${citeNum?'['+citeNum+']':''}</span>` : ''}
+    let isProcessing = false;
+
+    async function send(text) {
+      if (isProcessing) return;
+      const q = (text || $('#q').value).trim(); if (!q) return; $('#q').value = '';
+      addMsg({ role: 'user', content: q });
+
+      isProcessing = true;
+      const sendBtn = $('#send-btn');
+      const qInput = $('#q');
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Processing…';
+      }
+      if (qInput) qInput.disabled = true;
+
+      const box = $('#msgs');
+      const procHtml = `
+        <div id="processing-bubble" class="a processing">
+          <div class="processing-content">
+            <div class="processing-spinner"></div>
+            <span class="processing-text">Processing answer</span>
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>`;
+      box.insertAdjacentHTML('beforeend', procHtml);
+      $('#chat').scrollTop = 1e9;
+
+      try {
+        const res = await post(`/api/notebooks/${nb}/chat`, { question: q, session_id: sess });
+        const bubble = $('#processing-bubble');
+        if (bubble) bubble.remove();
+        addMsg(res);
+      } catch (e) {
+        const bubble = $('#processing-bubble');
+        if (bubble) bubble.remove();
+        addMsg({ role: 'assistant', content: 'Error: ' + e.message, citations: [] });
+      } finally {
+        isProcessing = false;
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send';
+        }
+        if (qInput) {
+          qInput.disabled = false;
+          qInput.focus();
+        }
+      }
+      refresh();
+    }
+
+    // Viewer and Highlights on Left Side
+    let currentViewerData = null;
+    let currentViewerMode = 'doc'; // 'doc' or 'chunks'
+    let currentTargetChunkId = null;
+    let currentTargetCiteNum = null;
+    let currentTargetExcerptText = null;
+
+    function closeDocViewer() {
+      $('#view-doc').style.display = 'none';
+      $('#view-sources').style.display = 'flex';
+      currentViewerData = null;
+      currentTargetChunkId = null;
+      currentTargetExcerptText = null;
+    }
+
+    function switchViewerTab(mode) {
+      currentViewerMode = mode;
+      const td = $('#tab-doc');
+      const tc = $('#tab-chunks');
+      if (td) td.classList.toggle('active', mode === 'doc');
+      if (tc) tc.classList.toggle('active', mode === 'chunks');
+      renderViewerBody();
+    }
+
+    let currentTargetClaimText = null;
+
+    function extractConcernedPatch(chunkText, contextText) {
+      if (!chunkText) return '';
+      let text = chunkText.trim();
+
+      // 1. Drop leading overlap fragment if it starts with lowercase or conjunction and ends with punctuation
+      const lines = text.split('\n');
+      if (lines.length > 1) {
+        const first = lines[0].trim();
+        if (first && (first[0] === first[0].toLowerCase() || /^(and|or|but|the|with|in|to|of|so)\b/i.test(first)) && /[.?!;:]$/.test(first)) {
+          const rest = lines.slice(1).join('\n').trim();
+          if (rest) text = rest;
+        }
+      }
+
+      // 2. Score lines by relevance to context keywords (question & claim)
+      if (contextText) {
+        const stop = new Set(['what', 'when', 'where', 'which', 'who', 'whom', 'this', 'that', 'with', 'from', 'have', 'more', 'than', 'does', 'each', 'the', 'and', 'for', 'are', 'was', 'were', 'you', 'can', 'about', 'explain']);
+        const getWords = s => new Set((s.toLowerCase().match(/\b[a-zA-Z0-9_]{3,}\b/g) || []).filter(w => !stop.has(w)));
+        const kw = getWords(contextText);
+        if (kw.size > 0) {
+          const splitLines = text.split('\n');
+          const scored = splitLines.map((ln, idx) => {
+            const w = getWords(ln);
+            let count = 0;
+            w.forEach(word => { if (kw.has(word)) count++; });
+            return { ln, count, idx };
+          });
+          const matched = scored.filter(s => s.count > 0 && s.ln.trim().length > 0);
+          if (matched.length > 0) {
+            const startIdx = matched[0].idx;
+            let endIdx = matched[matched.length - 1].idx;
+            while (endIdx + 1 < splitLines.length && splitLines[endIdx + 1].trim() && !/^(Q\.|Question|\d+\.)/i.test(splitLines[endIdx + 1].trim())) {
+              endIdx++;
+            }
+            const patch = splitLines.slice(startIdx, endIdx + 1).join('\n').trim();
+            if (patch) return patch;
+          }
+        }
+      }
+      return text;
+    }
+
+    function highlightInPage(pageText, patchText) {
+      if (!patchText || !patchText.trim()) return { matched: false, html: esc(pageText) };
+      const cleanPatch = patchText.trim();
+
+      // 1. Exact match
+      let idx = pageText.indexOf(cleanPatch);
+      let matchLen = cleanPatch.length;
+
+      // 2. Whitespace-flexible regex match (handling differences in newlines vs spaces)
+      if (idx === -1) {
+        try {
+          const escaped = cleanPatch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+          const rx = new RegExp(escaped, 'i');
+          const m = pageText.match(rx);
+          if (m) {
+            idx = m.index;
+            matchLen = m[0].length;
+          }
+        } catch(e) {}
+      }
+
+      // 3. Line-by-line fallback to match largest continuous chunk
+      if (idx === -1) {
+        const patchLines = cleanPatch.split('\n').map(l => l.trim()).filter(l => l.length > 15);
+        for (const line of patchLines) {
+          const lIdx = pageText.indexOf(line);
+          if (lIdx !== -1) {
+            idx = lIdx;
+            matchLen = line.length;
+            break;
+          }
+        }
+      }
+
+      if (idx !== -1) {
+        const before = esc(pageText.slice(0, idx));
+        const match = esc(pageText.slice(idx, idx + matchLen));
+        const after = esc(pageText.slice(idx + matchLen));
+        return {
+          matched: true,
+          html: `${before}<mark class="rel-hl" id="doc-hl">${match}</mark>${after}`
+        };
+      }
+      return { matched: false, html: esc(pageText) };
+    }
+
+    function renderViewerBody() {
+      if (!currentViewerData) return;
+      const d = currentViewerData;
+      const chunkId = currentTargetChunkId;
+      const citeNum = currentTargetCiteNum;
+      const excerptText = currentTargetExcerptText;
+      const targetPatch = extractConcernedPatch(excerptText, currentTargetClaimText);
+
+      if (currentViewerMode === 'chunks') {
+        $('#vbody').innerHTML = d.chunks.map(c => {
+          const isTarget = chunkId && (String(c.id) === String(chunkId));
+          return `
+        <div class="ck ${isTarget ? 'target flash-target' : ''}" id="ck${c.id}">
+          <div class="ck-badge">
+            <small>chunk ${c.idx + 1} · page ${c.page}</small>
+            ${isTarget ? `<span class="hl-tag">🎯 Cited Excerpt ${citeNum ? '[' + citeNum + ']' : ''}</span>` : ''}
+          </div>
+          <div class="ck-text">${isTarget ? `<mark class="rel-hl">${esc(targetPatch || c.text)}</mark>` : esc(c.text)}</div>
+        </div>`;
+        }).join('');
+      } else {
+        // Document View: Render original continuous document by pages
+        let pages = d.pages;
+        if (!pages || !pages.length) {
+          const pMap = {};
+          (d.chunks || []).forEach(c => {
+            const p = c.page || 1;
+            pMap[p] = pMap[p] || [];
+            pMap[p].push(c.text);
+          });
+          pages = Object.keys(pMap).sort((a,b)=>a-b).map(p => ({ page: +p, text: pMap[p].join('\n\n') }));
+        }
+
+        $('#vbody').innerHTML = pages.map(p => {
+          let pageTextHtml = esc(p.text);
+          let hasHighlight = false;
+          if (targetPatch) {
+            const res = highlightInPage(p.text, targetPatch);
+            if (res.matched) {
+              pageTextHtml = res.html;
+              hasHighlight = true;
+            }
+          }
+
+          return `
+          <div class="doc-page ${hasHighlight ? 'has-hl' : ''}" id="doc-page-${p.page}">
+            <div class="doc-page-header">
+              <span>📄 Page ${p.page} of ${pages.length}</span>
+              ${hasHighlight ? `<span class="hl-tag">🎯 Cited Excerpt ${citeNum ? '[' + citeNum + ']' : ''}</span>` : ''}
+            </div>
+            <div class="doc-page-body">${pageTextHtml}</div>
+          </div>`;
+        }).join('');
+      }
+
+      setTimeout(() => {
+        if (currentViewerMode === 'doc') {
+          const hl = $('#doc-hl');
+          if (hl) {
+            hl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else if (chunkId) {
+            const targetChunk = (d.chunks || []).find(c => String(c.id) === String(chunkId));
+            if (targetChunk) {
+              const pEl = $(`#doc-page-${targetChunk.page}`);
+              if (pEl) pEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
+        } else if (currentViewerMode === 'chunks' && chunkId) {
+          const t = $('#ck' + chunkId) || $('.ck.target');
+          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 70);
+    }
+
+    async function openViewer(sid, chunkId = null, citeNum = null, excerptText = null, claimText = null) {
+      const d = await api(`/api/sources/${sid}/chunks`);
+      currentViewerData = d;
+      currentTargetChunkId = chunkId;
+      currentTargetCiteNum = citeNum;
+      currentTargetExcerptText = excerptText;
+      currentTargetClaimText = claimText;
+
+      $('#doc-title').textContent = d.source.name;
+      const numPages = (d.pages && d.pages.length) ? d.pages.length : (new Set(d.chunks.map(c=>c.page)).size || 1);
+      $('#doc-sub').textContent = `${numPages} page${numPages > 1 ? 's' : ''} · ${d.chunks.length} chunks · ${money(d.source.cost)}`;
+
+      // ALWAYS open original document ('doc') by default!
+      currentViewerMode = 'doc';
+
+      const td = $('#tab-doc');
+      const tc = $('#tab-chunks');
+      if (td) td.classList.toggle('active', true);
+      if (tc) tc.classList.toggle('active', false);
+
+      // Switch left view to doc viewer
+      $('#view-sources').style.display = 'none';
+      $('#view-doc').style.display = 'flex';
+
+      renderViewerBody();
+    }
+
+    // Hover Tooltip on Citations
+    const tip = $('#tip');
+    function getCite(el) {
+      if (!el) return null;
+      const mId = el.dataset.m;
+      const n = el.dataset.n;
+      if (mId && cites[mId]) {
+        const found = cites[mId].find(c => String(c.n) === String(n));
+        if (found) return found;
+      }
+      for (const k in cites) {
+        const found = (cites[k] || []).find(c => String(c.n) === String(n));
+        if (found) return found;
+      }
+      return null;
+    }
+
+    document.addEventListener('mouseover', e => {
+      const el = e.target.closest('.cite');
+      if (!el) return;
+      const c = getCite(el);
+      if (!c) return;
+      const msgEl = el.closest('.a');
+      const claimText = msgEl ? msgEl.textContent : '';
+      const displaySnippet = extractConcernedPatch(c.patch || c.text, claimText);
+      tip.innerHTML = `
+        <div class="tip-header">
+          <b>📄 ${esc(c.source || 'Source')}</b>
+          <span class="tip-badge">Page ${c.page || 1} · Citation [${c.n}]</span>
         </div>
-        <div class="ck-text">${isTarget ? `<mark class="rel-hl">${esc(c.text)}</mark>` : esc(c.text)}</div>
-      </div>`;
-  }).join('');
+        <div class="tip-label">Concerned Excerpt:</div>
+        <div class="tip-rel">${esc(displaySnippet)}</div>
+        <div class="tip-foot">🖱 Click citation to view original document</div>
+      `;
+      tip.style.display = 'block';
+      const r = el.getBoundingClientRect();
+      const tipW = 440;
+      let left = r.left;
+      if (left + tipW > window.innerWidth - 16) {
+        left = window.innerWidth - tipW - 16;
+      }
+      if (left < 16) left = 16;
 
-  // Switch left view to doc viewer
-  $('#view-sources').style.display = 'none';
-  $('#view-doc').style.display = 'flex';
+      let top = r.top - tip.offsetHeight - 8;
+      if (top < 10) {
+        top = r.bottom + 8;
+      }
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    });
 
-  if(chunkId){
-    setTimeout(()=>{
-      const t = $('#ck' + chunkId);
-      if(t) t.scrollIntoView({behavior: 'smooth', block: 'center'});
-    }, 50);
-  }
-}
+    document.addEventListener('mouseout', e => {
+      if (e.target.closest('.cite')) tip.style.display = 'none';
+    });
 
-// Hover Tooltip on Citations
-const tip=$('#tip');
-const getCite=el=>(cites[el.dataset.m]||[]).find(c=>c.n==el.dataset.n);
-document.addEventListener('mouseover',e=>{
-  const el=e.target.closest('.cite');if(!el)return;
-  const c=getCite(el);if(!c)return;
-  const displaySnippet = c.text;
-  tip.innerHTML=`<b>${esc(c.source)} · p.${c.page}</b><div class="tip-rel">${esc(displaySnippet.slice(0,380))}${displaySnippet.length>380?'…':''}</div>`;
-  const r=el.getBoundingClientRect();
-  tip.style.display='block';
-  tip.style.left=Math.min(r.left,innerWidth-420)+'px';
-  tip.style.top=(r.top-tip.offsetHeight-8>0?r.top-tip.offsetHeight-8:r.bottom+8)+'px';
-});
-document.addEventListener('mouseout',e=>{if(e.target.closest('.cite'))tip.style.display='none'});
+    // Click Citation opens left doc viewer in original document mode and highlights concerned patch
+    document.addEventListener('click', e => {
+      const el = e.target.closest('.cite');
+      if (!el) return;
+      const c = getCite(el);
+      if (c) {
+        tip.style.display = 'none';
+        const msgEl = el.closest('.a');
+        const claimText = msgEl ? msgEl.textContent : '';
+        openViewer(c.source_id, c.chunk_id, c.n, c.patch || c.text, claimText);
+      }
+    });
 
-// Click Citation opens left doc viewer and highlights relevant answer
-document.addEventListener('click',e=>{
-  const el=e.target.closest('.cite');if(!el)return;
-  const c=getCite(el);
-  if(c) openViewer(c.source_id, c.chunk_id, c.n);
-});
+    // Highlight text and ask
+    document.addEventListener('mouseup', e => {
+      const b = $('#askbtn'), s = getSelection().toString().trim();
+      if (s.length > 3 && (e.target.closest('.a') || e.target.closest('#view-doc'))) {
+        const r = getSelection().getRangeAt(0).getBoundingClientRect(); b.dataset.t = s; b.style.display = 'block';
+        b.style.left = Math.min(r.left, innerWidth - 140) + 'px'; b.style.top = (r.bottom + 6) + 'px'
+      }
+      else if (e.target !== b) b.style.display = 'none'
+    });
+    function askSel() {
+      const t = $('#askbtn').dataset.t; $('#askbtn').style.display = 'none'; getSelection().removeAllRanges();
+      send(`Explain this passage in the context of my sources: "${t}"`)
+    }
 
-// Highlight text and ask
-document.addEventListener('mouseup',e=>{
-  const b=$('#askbtn'),s=getSelection().toString().trim();
-  if(s.length>3&&(e.target.closest('.a')||e.target.closest('#view-doc'))){
-    const r=getSelection().getRangeAt(0).getBoundingClientRect();b.dataset.t=s;b.style.display='block';
-    b.style.left=Math.min(r.left,innerWidth-140)+'px';b.style.top=(r.bottom+6)+'px'}
-  else if(e.target!==b)b.style.display='none'});
-function askSel(){const t=$('#askbtn').dataset.t;$('#askbtn').style.display='none';getSelection().removeAllRanges();
-  send(`Explain this passage in the context of my sources: "${t}"`)}
+    init();
+  </script>
+</body>
 
-init();
-</script></body></html>
+</html>

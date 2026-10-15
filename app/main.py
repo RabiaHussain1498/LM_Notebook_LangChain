@@ -11,7 +11,9 @@ STATIC = os.path.join(os.path.dirname(__file__), "..", "static")
 
 class NameIn(BaseModel): name: str
 class CheckIn(BaseModel): checked: bool
-class ChatIn(BaseModel): question: str
+class ChatIn(BaseModel):
+    question: str
+    session_id: int | None = None
 
 @app.get("/")
 def index(): return FileResponse(os.path.join(STATIC, "index.html"))
@@ -23,6 +25,14 @@ def notebooks(): return db.q("SELECT * FROM notebooks ORDER BY id")
 def new_notebook(b: NameIn):
     return {"id": db.ins("INSERT INTO notebooks(name) VALUES(?)", (b.name,)), "name": b.name}
 
+@app.delete("/api/notebooks/{nid}")
+def remove_notebook(nid: int):
+    nb = db.q("SELECT * FROM notebooks WHERE id=?", (nid,), one=True)
+    if not nb:
+        raise HTTPException(404, "Notebook not found")
+    rag.delete_notebook(nid)
+    return {"ok": True}
+
 @app.get("/api/notebooks/{nid}")
 def notebook(nid: int):
     nb = db.q("SELECT * FROM notebooks WHERE id=?", (nid,), one=True)
@@ -32,7 +42,7 @@ def notebook(nid: int):
               "WHERE s.notebook_id=?", (nid,), one=True)["c"]
     return {**nb, "total_cost": sc + mc,
             "sources": db.q("SELECT * FROM sources WHERE notebook_id=? ORDER BY id", (nid,)),
-            "sessions": db.q("SELECT * FROM sessions WHERE notebook_id=? ORDER BY id DESC", (nid,))}
+            "sessions": db.q("SELECT s.*, COUNT(m.id) as msg_count FROM sessions s LEFT JOIN messages m ON m.session_id=s.id WHERE s.notebook_id=? GROUP BY s.id ORDER BY msg_count DESC, s.id DESC", (nid,))}
 
 # ---- Phase 1: sources
 @app.post("/api/notebooks/{nid}/sources")
@@ -58,40 +68,86 @@ def remove(sid: int): rag.delete_source(sid); return {"ok": True}
 
 @app.get("/api/sources/{sid}/chunks")   # Phase 3: the viewer
 def chunks(sid: int):
-    return {"source": db.q("SELECT * FROM sources WHERE id=?", (sid,), one=True),
-            "chunks": db.q("SELECT id,idx,page,text FROM chunks WHERE source_id=? ORDER BY idx", (sid,))}
+    src = db.q("SELECT * FROM sources WHERE id=?", (sid,), one=True)
+    if not src:
+        raise HTTPException(404, "Source not found")
+    chunks_list = db.q("SELECT id,idx,page,text FROM chunks WHERE source_id=? ORDER BY idx", (sid,))
+    pages_data = None
+    if src.get("full_text"):
+        try:
+            pages_data = json.loads(src["full_text"])
+        except Exception:
+            pages_data = [{"page": 1, "text": src["full_text"]}]
+    return {
+        "source": src,
+        "chunks": chunks_list,
+        "pages": pages_data
+    }
 
-# ---- Phase 2 + 4: sessions and chat
+# ---- Phase 2 + 4: notebook conversation & LangChain message history
+@app.get("/api/notebooks/{nid}/messages")
+def notebook_messages(nid: int, sid: int | None = None):
+    history = rag.get_notebook_history(nid, sid)
+    result = []
+    for m in history.messages:
+        role = "user" if isinstance(m, rag.HumanMessage) else "assistant"
+        extra = m.additional_kwargs or {}
+        result.append({
+            "id": extra.get("id"),
+            "role": role,
+            "content": m.content,
+            "citations": extra.get("citations", []),
+            "cost": extra.get("cost", 0.0),
+            "tokens": extra.get("tokens", 0),
+            "total_tokens": extra.get("total_tokens", 0),
+        })
+    return result
+
+@app.post("/api/notebooks/{nid}/chat")
+def notebook_chat(nid: int, b: ChatIn):
+    nb = db.q("SELECT * FROM notebooks WHERE id=?", (nid,), one=True)
+    if not nb: raise HTTPException(404)
+    history = rag.get_notebook_history(nid, b.session_id)
+
+    blocked = guard.check(b.question)
+    if blocked:
+        history.add_message(rag.HumanMessage(content=b.question))
+        ai = rag.AIMessage(content=blocked, additional_kwargs={"citations": [], "cost": 0.0, "tokens": 0, "total_tokens": 0})
+        history.add_message(ai)
+        return {"id": ai.additional_kwargs.get("id"), "role": "assistant", "content": blocked, "citations": [], "cost": 0.0, "tokens": 0, "total_tokens": 0}
+
+    ids = [r["id"] for r in db.q("SELECT id FROM sources WHERE notebook_id=? AND checked=1", (nid,))]
+
+    user_msg = rag.HumanMessage(content=b.question)
+    history.add_message(user_msg)
+    try:
+        # Pass conversation history (excluding the current user question just added)
+        res = rag.answer(b.question, ids, history.messages[:-1])
+    except Exception as e:
+        raise HTTPException(502, str(e))
+
+    ai_msg = rag.AIMessage(content=res["content"], additional_kwargs={
+        "citations": res["citations"],
+        "cost": res["cost"],
+        "tokens": res["tokens"],
+        "total_tokens": res.get("total_tokens", 0)
+    })
+    history.add_message(ai_msg)
+    return {"id": ai_msg.additional_kwargs.get("id"), "role": "assistant", **res}
+
 @app.post("/api/notebooks/{nid}/sessions")
 def new_session(nid: int):
     return {"id": db.ins("INSERT INTO sessions(notebook_id,title) VALUES(?,?)", (nid, "New chat")), "title": "New chat"}
 
 @app.get("/api/sessions/{sid}/messages")
 def messages(sid: int):
-    rows = db.q("SELECT * FROM messages WHERE session_id=? ORDER BY id", (sid,))
-    for r in rows: r["citations"] = json.loads(r["citations"])
-    return rows
+    s = db.q("SELECT * FROM sessions WHERE id=?", (sid,), one=True)
+    if not s: return []
+    return notebook_messages(s["notebook_id"], sid)
 
 @app.post("/api/sessions/{sid}/chat")
 def chat(sid: int, b: ChatIn):
     s = db.q("SELECT * FROM sessions WHERE id=?", (sid,), one=True)
     if not s: raise HTTPException(404)
-    hist = [{"role": m["role"], "content": __import__("re").sub(r"\[\d+\]", "", m["content"])}
-            for m in db.q("SELECT role,content FROM messages WHERE session_id=? ORDER BY id DESC LIMIT 6", (sid,))][::-1]
-    db.ins("INSERT INTO messages(session_id,role,content) VALUES(?,?,?)", (sid, "user", b.question))
-    if s["title"] == "New chat":
-        db.q("UPDATE sessions SET title=? WHERE id=?", (b.question[:40], sid))
-    res = {"content": "", "citations": [], "cost": 0.0, "tokens": 0}
-    blocked = guard.check(b.question)
-    if blocked:
-        res["content"] = blocked
-    else:
-        ids = [r["id"] for r in db.q("SELECT id FROM sources WHERE notebook_id=? AND checked=1", (s["notebook_id"],))]
-        if not ids:
-            res["content"] = "Please check at least one source in the left panel first."
-        else:
-            try: res = rag.answer(b.question, ids, hist)
-            except Exception as e: raise HTTPException(502, str(e))
-    mid = db.ins("INSERT INTO messages(session_id,role,content,citations,cost,tokens) VALUES(?,?,?,?,?,?)",
-                 (sid, "assistant", res["content"], json.dumps(res["citations"]), res["cost"], res["tokens"]))
-    return {"id": mid, "role": "assistant", **res}
+    b.session_id = sid
+    return notebook_chat(s["notebook_id"], b)
