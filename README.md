@@ -22,11 +22,26 @@ Upload documents (PDF, TXT, Markdown), select sources, and ask questions. Every 
   - One-click **"Select All"** toggle to enable or disable all sources simultaneously.
   - Real-time chunk counting and per-source embedding cost estimation.
   - Inspect any source document and browse its chunks.
+- **Web Search Fallback**: When documents don't contain the answer, the assistant offers web search results with URL citations.
+- **Conversation History & Multi-Session**: Persistent chat history per notebook with support for multiple chat sessions.
+- **Ask About This**: Select any text in the chat or document viewer to instantly ask a follow-up question about it.
 - **Multi-Layer Guardrails**:
-  - Self-harm detection with supportive crisis resources.
+  - Self-harm and violence detection with supportive crisis resources.
   - System-prompt leak and jailbreak probing prevention.
   - OpenAI moderation check prior to LLM execution.
+- **Dual-Model Cost Optimization**: Uses `gpt-6-luna` for answers and `gpt-4o-mini` for cheap tasks (query analysis, guardrails, web search) to minimize API costs.
 - **Token & Cost Tracking**: Live USD cost calculation across embeddings, input tokens, and output tokens.
+
+---
+
+## How It Works
+
+1. **Upload** a document → text is extracted, split into small chunks, embedded via OpenAI, and stored in Qdrant.
+2. **Ask a question** → the query is analyzed (rephrased if it's a follow-up), then the top matching chunks are retrieved via vector similarity search.
+3. **Get a grounded answer** → the LLM answers strictly from the retrieved excerpts, citing them with `[n]` markers.
+4. **Click a citation** → the left panel opens the original document and highlights the exact cited passage.
+
+If no sources contain the answer, the assistant offers to provide web search results instead.
 
 ---
 
@@ -37,11 +52,14 @@ LM_Notebook_LangChain/
 ├── app/
 │   ├── __init__.py
 │   ├── db.py           # SQLite database schema (notebooks, sources, chunks, sessions, messages)
-│   ├── guard.py        # Safety guardrails (self-harm, prompt injection, content moderation)
+│   ├── guard.py        # Safety guardrails (self-harm, violence, prompt injection, content moderation)
 │   ├── main.py         # FastAPI application, REST endpoints, static file serving
 │   └── rag.py          # LangChain RAG pipeline (chunking, embedding, Qdrant store, retrieval chain)
+├── data/               # Auto-created at runtime (gitignored)
+│   ├── app.db          # SQLite database
+│   └── qdrant/         # Qdrant embedded vector storage
 ├── static/
-│   └── index.html      
+│   └── index.html      # Single-page web interface
 ├── .env.example        
 ├── .gitignore          
 ├── requirements.txt    
@@ -94,4 +112,3 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 > **Note:** Do not pass the `--reload` flag in development. Embedded Qdrant operates directly within the Python process and locks local storage files; running multiple reloader worker processes can cause file lock conflicts.
 
 Open your browser at **[http://127.0.0.1:8000](http://127.0.0.1:8000)**.
-

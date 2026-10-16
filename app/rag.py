@@ -1,9 +1,12 @@
 """RAG pipeline built with LangChain:
    PDF text -> RecursiveCharacterTextSplitter -> OpenAIEmbeddings -> QdrantVectorStore
    question -> retriever (filtered to checked sources) -> ChatPromptTemplate | ChatOpenAI -> cited answer"""
-import io, json, os, re
+import csv, io, json, os, re
 import tiktoken
 from pypdf import PdfReader
+from pptx import Presentation
+from docx import Document as DocxDocument
+from openpyxl import load_workbook
 from qdrant_client import QdrantClient, models
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -137,10 +140,37 @@ def count_tokens(text):
     except Exception:
         return max(1, len(text) // 4)
 
+SUPPORTED_FORMATS = {".pdf", ".txt", ".md", ".pptx", ".docx", ".xlsx", ".csv"}
+
 # ---- Phase 1: ingestion
 def extract(name, data):
-    if name.lower().endswith(".pdf"):
+    lower = name.lower()
+    ext = os.path.splitext(lower)[1]
+    if ext not in SUPPORTED_FORMATS:
+        raise ValueError(f"Unsupported file type '{ext}'. Please upload: {', '.join(sorted(SUPPORTED_FORMATS))}")
+    if ext == ".pdf":
         return [(i + 1, p.extract_text() or "") for i, p in enumerate(PdfReader(io.BytesIO(data)).pages)]
+    if ext == ".pptx":
+        prs = Presentation(io.BytesIO(data))
+        return [(i + 1, "\n".join(sh.text for sh in slide.shapes if sh.has_text_frame))
+                for i, slide in enumerate(prs.slides)]
+    if ext == ".docx":
+        doc = DocxDocument(io.BytesIO(data))
+        return [(1, "\n".join(p.text for p in doc.paragraphs))]
+    if ext == ".xlsx":
+        wb = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+        pages = []
+        for i, ws in enumerate(wb.worksheets):
+            rows = []
+            for row in ws.iter_rows(values_only=True):
+                rows.append("\t".join(str(c) if c is not None else "" for c in row))
+            pages.append((i + 1, "\n".join(rows)))
+        wb.close()
+        return pages
+    if ext == ".csv":
+        text = data.decode("utf-8", errors="ignore")
+        reader = csv.reader(io.StringIO(text))
+        return [(1, "\n".join("\t".join(row) for row in reader))]
     return [(1, data.decode("utf-8", errors="ignore"))]
 
 def ingest(notebook_id, name, data):
